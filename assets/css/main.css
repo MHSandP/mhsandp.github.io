@@ -874,6 +874,13 @@ input, select, textarea {
     background: none !important;
     border: none !important;
 }
+/* 2.5 Kill the Vertical Ghost Line */
+#header:before, 
+#header:after, 
+#main:before, 
+#footer:before {
+    display: none !important;
+}
 
 /* 3. Fix the Box Overspill (Converting to Flexbox) */
 .feature {
@@ -913,20 +920,42 @@ input, select, textarea {
     flex-direction: row-reverse !important;
 }
 
-/* 5. Mobile Responsiveness for the New Boxes */
-@media screen and (max-width: 840px) {
-    .feature {
-        flex-direction: column !important;
-    }
+/* 5. Mobile & Tablet Responsiveness Override */
+@media screen and (max-width: 980px) {
+    /* Force all boxes to stack vertically */
+    .feature, 
+    .feature.left, 
     .feature.right {
         flex-direction: column !important;
+        height: auto !important;
     }
-    .feature .image, .feature .content {
+    
+    /* Make the image block take full width and sit on top */
+    .feature .image {
         width: 100% !important;
-        min-height: 15em;
+        min-height: 18em !important;
     }
+    
+    /* Make the text block take full width and sit underneath */
     .feature .content {
-        padding: 3em 2em !important;
+        width: 100% !important;
+        padding: 4em 3em !important;
         text-align: center !important;
+    }
+}
+
+/* 6. Deep Mobile (Smartphones) */
+@media screen and (max-width: 736px) {
+    /* Shrink the padding so text doesn't hit the screen edges */
+    .feature .content {
+        padding: 3em 1.5em !important;
+    }
+    
+    /* Slightly shrink the logo and title so they don't dominate the phone screen */
+    #header .logo img {
+        width: 180px !important; 
+    }
+    #header h1 {
+        font-size: 1.75em !important;
     }
 }
