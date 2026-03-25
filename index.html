@@ -15,6 +15,10 @@
 				<h1>MUHAMMAD HAMZA SIDDIQUI</h1>
 				<p>Financial Analyst | Data Analytics | Trade Economist<br />
 				Associate Chartered Banker with expertise in CAPEX strategy and CBAM impact modeling.</p>
+				
+				<ul class="actions special" style="margin-top: 1.5em;">
+					<li><a href="projects.html" class="button primary" style="background-color: #C5B358 !important; color: #000000 !important; font-weight: bold; border: none;">View Technical Projects</a></li>
+				</ul>
 			</div>
 
 		<div id="main">
@@ -57,118 +61,102 @@
 						</div>
 					</section>
 
-									</div>
-					<section class="box special" style="padding: 3em; background-color: rgba(0,0,0,0.2); border-radius: 8px; margin-top: 2em; border-left: 4px solid #C5B358;">
-					    <header class="major">
-					        <h2>Interactive Tool: CBAM Cost Optimizer</h2>
-					        <p>Estimate potential regulatory cost savings by transitioning to low-carbon supply lines.</p>
-					    </header>
-					    
-					    <div class="row gtr-uniform">
-					        <div class="col-6 col-12-xsmall">
-					            <label for="importVolume" style="text-align: left; font-size: 0.9em;">Import Volume (Tonnes)</label>
-					            <input type="number" id="importVolume" placeholder="e.g., 5000" min="1" />
-					        </div>
-					        <div class="col-6 col-12-xsmall">
-					            <label for="carbonPrice" style="text-align: left; font-size: 0.9em;">Est. EU ETS Price (€ / tCO2e)</label>
-					            <input type="number" id="carbonPrice" value="75" placeholder="75" min="1" />
-					        </div>
-					        <div class="col-6 col-12-xsmall">
-					            <label for="currentIntensity" style="text-align: left; font-size: 0.9em;">Current Carbon Intensity (tCO2e/tonne)</label>
-					            <input type="number" id="currentIntensity" step="0.1" placeholder="e.g., 2.2 (Steel)" min="0" />
-					        </div>
-					        <div class="col-6 col-12-xsmall">
-					            <label for="targetIntensity" style="text-align: left; font-size: 0.9em;">Target Carbon Intensity (tCO2e/tonne)</label>
-					            <input type="number" id="targetIntensity" step="0.1" placeholder="e.g., 1.5" min="0" />
-					        </div>
-					        
-					        <div class="col-12">
-					            <ul class="actions special">
-					                <li><button onclick="calculateCBAM()" class="button primary" style="background-color: #C5B358; color: #000 !important; font-weight: bold;">Calculate Potential Savings</button></li>
-					            </ul>
-					        </div>
-					    </div>
+				</div>
+
+				<section class="box special" style="padding: 3em; background-color: rgba(0,0,0,0.2); border-radius: 8px; margin-top: 2em; border-left: 4px solid #C5B358;">
+					<header class="major">
+						<h2>Interactive Tool: CBAM Cost Optimizer</h2>
+						<p>Estimate potential regulatory cost savings by transitioning to low-carbon supply lines.</p>
+					</header>
 					
-					    <div id="cbamResults" style="display: none; margin-top: 2em; padding-top: 2em; border-top: 1px solid rgba(255,255,255,0.2);">
-					        <h3 style="color: #C5B358; margin-bottom: 0.5em;">Projected Financial Impact</h3>
-					        <p style="font-size: 1.2em; margin-bottom: 0;">
-					            Estimated Current Liability: <strong id="currentCost">€0</strong><br>
-					            Optimized Liability: <strong id="optimizedCost">€0</strong>
-					        </p>
-					        <h2 style="color: #4CAF50; margin-top: 0.5em;">
-					            Annual Savings: <span id="totalSavings">€0</span>
-					        </h2>
-					        <p style="font-size: 0.8em; opacity: 0.7;">*This is a simplified estimation model for demonstrative purposes.</p>
-					    </div>
-					</section>
+					<div class="row gtr-uniform">
+						<div class="col-6 col-12-xsmall">
+							<label for="importVolume" style="text-align: left; font-size: 0.9em;">Import Volume (Tonnes)</label>
+							<input type="number" id="importVolume" placeholder="e.g., 5000" min="1" />
+						</div>
+						<div class="col-6 col-12-xsmall">
+							<label for="carbonPrice" style="text-align: left; font-size: 0.9em;">Est. EU ETS Price (€ / tCO2e)</label>
+							<input type="number" id="carbonPrice" value="75" placeholder="75" min="1" />
+						</div>
+						<div class="col-6 col-12-xsmall">
+							<label for="currentIntensity" style="text-align: left; font-size: 0.9em;">Current Carbon Intensity (tCO2e/tonne)</label>
+							<input type="number" id="currentIntensity" step="0.1" placeholder="e.g., 2.2 (Steel)" min="0" />
+						</div>
+						<div class="col-6 col-12-xsmall">
+							<label for="targetIntensity" style="text-align: left; font-size: 0.9em;">Target Carbon Intensity (tCO2e/tonne)</label>
+							<input type="number" id="targetIntensity" step="0.1" placeholder="e.g., 1.5" min="0" />
+						</div>
+						
+						<div class="col-12">
+							<ul class="actions special">
+								<li><button onclick="calculateCBAM()" class="button primary" style="background-color: #C5B358 !important; color: #000000 !important; font-weight: bold; border: none;">Calculate Potential Savings</button></li>
+							</ul>
+						</div>
+					</div>
 					
-					<script>
-					    function calculateCBAM() {
-					        // Fetch values from inputs
-					        const volume = parseFloat(document.getElementById('importVolume').value);
-					        const price = parseFloat(document.getElementById('carbonPrice').value);
-					        const currentIntensity = parseFloat(document.getElementById('currentIntensity').value);
-					        const targetIntensity = parseFloat(document.getElementById('targetIntensity').value);
+					<div id="cbamResults" style="display: none; margin-top: 2em; padding-top: 2em; border-top: 1px solid rgba(255,255,255,0.2);">
+						<h3 style="color: #C5B358; margin-bottom: 0.5em;">Projected Financial Impact</h3>
+						<p style="font-size: 1.2em; margin-bottom: 0;">
+							Estimated Current Liability: <strong id="currentCost">€0</strong><br>
+							Optimized Liability: <strong id="optimizedCost">€0</strong>
+						</p>
+						<h2 style="color: #4CAF50; margin-top: 0.5em;">
+							Annual Savings: <span id="totalSavings">€0</span>
+						</h2>
+						<p style="font-size: 0.8em; opacity: 0.7;">*This is a simplified estimation model for demonstrative purposes.</p>
+					</div>
+				</section>
 					
-					        // Validation to ensure all fields are filled
-					        if (isNaN(volume) || isNaN(price) || isNaN(currentIntensity) || isNaN(targetIntensity)) {
-					            alert("Please fill in all fields to generate an accurate projection.");
-					            return;
-					        }
+				<script>
+					function calculateCBAM() {
+						const volume = parseFloat(document.getElementById('importVolume').value);
+						const price = parseFloat(document.getElementById('carbonPrice').value);
+						const currentIntensity = parseFloat(document.getElementById('currentIntensity').value);
+						const targetIntensity = parseFloat(document.getElementById('targetIntensity').value);
 					
-					        // The Math
-					        const currentTotalEmissions = volume * currentIntensity;
-					        const targetTotalEmissions = volume * targetIntensity;
+						if (isNaN(volume) || isNaN(price) || isNaN(currentIntensity) || isNaN(targetIntensity)) {
+							alert("Please fill in all fields to generate an accurate projection.");
+							return;
+						}
 					
-					        const currentCost = currentTotalEmissions * price;
-					        const targetCost = targetTotalEmissions * price;
-					        const savings = currentCost - targetCost;
+						const currentTotalEmissions = volume * currentIntensity;
+						const targetTotalEmissions = volume * targetIntensity;
 					
-					        // Formatting currency
-					        const formatter = new Intl.NumberFormat('en-IE', { style: 'currency', currency: 'EUR', minimumFractionDigits: 0, maximumFractionDigits: 0 });
+						const currentCost = currentTotalEmissions * price;
+						const targetCost = targetTotalEmissions * price;
+						const savings = currentCost - targetCost;
 					
-					        // Update the DOM
-					        document.getElementById('currentCost').innerText = formatter.format(currentCost);
-					        document.getElementById('optimizedCost').innerText = formatter.format(targetCost);
-					        
-					        const savingsElement = document.getElementById('totalSavings');
-					        savingsElement.innerText = formatter.format(savings);
-					        
-					        // Color coding the savings number
-					        if(savings > 0) {
-					            savingsElement.style.color = "#4CAF50"; // Green for savings
-					        } else if (savings < 0) {
-					            savingsElement.style.color = "#ff4c4c"; // Red for losses
-					        } else {
-					            savingsElement.style.color = "#C5B358"; // Neutral gold
-					        }
+						const formatter = new Intl.NumberFormat('en-IE', { style: 'currency', currency: 'EUR', minimumFractionDigits: 0, maximumFractionDigits: 0 });
 					
-					        // Reveal the results div
-					        document.getElementById('cbamResults').style.display = 'block';
-					    }
-					</script>
+						document.getElementById('currentCost').innerText = formatter.format(currentCost);
+						document.getElementById('optimizedCost').innerText = formatter.format(targetCost);
+						
+						const savingsElement = document.getElementById('totalSavings');
+						savingsElement.innerText = formatter.format(savings);
+						
+						if(savings > 0) {
+							savingsElement.style.color = "#4CAF50"; 
+						} else if (savings < 0) {
+							savingsElement.style.color = "#ff4c4c"; 
+						} else {
+							savingsElement.style.color = "#C5B358"; 
+						}
+					
+						document.getElementById('cbamResults').style.display = 'block';
+					}
+				</script>
+
 				<footer class="major container medium">
 					<h3>Connect With Me</h3>
 					<p>Available for discussions regarding financial analytics, trade economics, and strategic planning.</p>
 					<ul class="actions special">
-						<li><a href="mailto:hamza.siddiqu306@gmail.com" class="button">Send an Email</a></li>
-						<li><a href="https://www.linkedin.com/in/muhammad-hamza-siddiqui" class="button" target="_blank">View LinkedIn</a></li>
+						<li><a href="mailto:hamza.ajsiddiqui@gmail.com" class="button" style="border: 2px solid #C5B358; color: #ffffff !important;">Send an Email</a></li>
+						<li><a href="https://www.linkedin.com/in/muhammad-hamza-siddiqui" class="button" target="_blank" style="border: 2px solid #C5B358; color: #ffffff !important;">View LinkedIn</a></li>
+						<li><a href="projects.html" class="button primary" style="background-color: #C5B358 !important; color: #000000 !important; font-weight: bold; border: none;">View Technical Projects</a></li>
 					</ul>
 				</footer>
 
-			</div>
-
-		<footer class="major container medium">
-					<h3>Connect With Me</h3>
-					<p>Available for discussions regarding financial analytics, trade economics, and strategic planning.</p>
-					<ul class="actions special">
-						<li><a href="mailto:hamza.ajsiddiqui@gmail.com" class="button">Send an Email</a></li>
-						<li><a href="https://www.linkedin.com/in/muhammad-hamza-siddiqui" class="button" target="_blank">View LinkedIn</a></li>
-						<li><a href="projects.html" class="button primary" style="background-color: #C5B358; color: #000 !important;">View Technical Projects</a></li>
-					</ul>
-				</footer>
-
-			</div> <div id="footer">
+		</div> <div id="footer">
 			<div class="container medium">
 
 				<header class="major last">
@@ -191,10 +179,10 @@
 		</div>
 
 		<script src="assets/js/jquery.min.js"></script>
-			<script src="assets/js/browser.min.js"></script>
-			<script src="assets/js/breakpoints.min.js"></script>
-			<script src="assets/js/util.js"></script>
-			<script src="assets/js/main.js"></script>
+		<script src="assets/js/browser.min.js"></script>
+		<script src="assets/js/breakpoints.min.js"></script>
+		<script src="assets/js/util.js"></script>
+		<script src="assets/js/main.js"></script>
 
 	</body>
 </html>
