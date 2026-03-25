@@ -1,0 +1,956 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zurich Orbital // Market Sim v9.1</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap');
+        
+        :root {
+            --neon-green: #00ff41;
+            --neon-pink: #ff0080;
+            --neon-blue: #00f3ff;
+            --neon-amber: #ff9900;
+            --neon-red: #ff0000;
+            --dark-bg: #050505;
+            --panel-bg: rgba(10, 15, 20, 0.95);
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            background-color: var(--dark-bg);
+            color: var(--neon-green);
+            font-family: 'Share Tech Mono', monospace;
+            margin: 0; padding: 0;
+            overflow-x: hidden;
+            background-image: 
+                linear-gradient(rgba(0, 255, 65, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 255, 65, 0.05) 1px, transparent 1px);
+            background-size: 30px 30px;
+            padding-bottom: 50px;
+        }
+
+        #boot-sequence {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000; z-index: 9999;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            font-family: 'Orbitron', monospace;
+            transition: opacity 1s;
+        }
+        .boot-text { font-size: 1.5rem; color: var(--neon-green); margin-bottom: 20px; text-shadow: 0 0 10px var(--neon-green); }
+        .progress-bar { width: 300px; height: 4px; background: #333; position: relative; }
+        .progress-fill { height: 100%; background: var(--neon-green); width: 0%; transition: width 0.1s; box-shadow: 0 0 10px var(--neon-green); }
+
+        .ticker-wrap {
+            position: fixed; top: 0; width: 100%; overflow: hidden; height: 30px;
+            background-color: #000; border-bottom: 1px solid var(--neon-green);
+            white-space: nowrap; z-index: 100;
+        }
+        .ticker { display: inline-block; margin-top: 5px; animation: ticker 60s linear infinite; }
+        .ticker-item { display: inline-block; padding: 0 2rem; font-size: 0.9rem; color: var(--neon-green); }
+        @keyframes ticker { 0% { transform: translate3d(0, 0, 0); } 100% { transform: translate3d(-50%, 0, 0); } }
+
+        .container { max-width: 1600px; margin: 60px auto 0 auto; padding: 20px; display: none; opacity: 0; transition: opacity 1s; }
+        .visible { display: block !important; opacity: 1 !important; }
+        
+        .header-bar {
+            display: flex; justify-content: space-between; align-items: flex-end;
+            border-bottom: 2px solid var(--neon-green); padding-bottom: 10px; margin-bottom: 20px;
+        }
+        h1 { margin: 0; font-family: 'Orbitron', sans-serif; text-transform: uppercase; color: #fff; text-shadow: 0 0 10px var(--neon-green); }
+
+        .tabs { display: flex; margin-bottom: 0; border-bottom: 1px solid var(--neon-green); }
+        .tab-btn {
+            background: rgba(0,20,0,0.8); color: #888; border: 1px solid #333; border-bottom: none;
+            padding: 15px 25px; cursor: pointer; font-family: 'Orbitron'; margin-right: 5px; transition: 0.3s;
+        }
+        .tab-btn:hover { background: #111; color: var(--neon-green); }
+        .tab-btn.active { background: var(--neon-green); color: #000; font-weight: bold; box-shadow: 0 -5px 15px rgba(0,255,65,0.2); }
+
+        .tab-content { display: none; background: var(--panel-bg); border: 1px solid var(--neon-green); border-top: none; padding: 20px; min-height: 500px; }
+        .tab-content.active { display: block; }
+
+        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        th { text-align: left; background: rgba(0, 255, 65, 0.1); padding: 12px; color: #fff; font-family: 'Orbitron'; font-size: 0.8em; }
+        td { padding: 10px 12px; border-bottom: 1px solid #333; font-size: 0.9em; }
+        tr:hover { background: rgba(0, 255, 65, 0.05); }
+
+        .up { color: var(--neon-green); }
+        .down { color: var(--neon-pink); }
+        .private-lock { color: #555; font-style: italic; }
+        
+        input, select, button { background: #000; color: var(--neon-green); border: 1px solid var(--neon-green); padding: 8px; font-family: 'Share Tech Mono'; font-size: 0.9em; width: 100%; box-sizing: border-box; }
+        button { cursor: pointer; font-weight: bold; text-transform: uppercase; transition: 0.2s; width: auto; }
+        button:hover { background: var(--neon-green); color: #000; }
+        
+        .control-panel { background: rgba(0,0,0,0.5); border: 1px solid #333; padding: 15px; margin-bottom: 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }
+
+        .trade-grid { display: grid; grid-template-columns: 350px 1fr; gap: 20px; }
+        .wallet-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); gap: 15px; }
+        
+        .card { background: #050505; border: 1px solid #333; padding: 15px; }
+        .card-header { border-bottom: 1px solid #333; margin-bottom: 10px; padding-bottom: 5px; display:flex; justify-content:space-between; }
+        
+        .stat-row { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 0.9em; }
+        .stat-label { color: #666; }
+        .stat-val { color: #fff; }
+
+        .log-box { height: 200px; overflow-y: auto; background: #000; border: 1px solid #333; padding: 10px; font-size: 0.8em; font-family: monospace; }
+        .log-entry { margin-bottom: 4px; border-left: 2px solid #333; padding-left: 5px; }
+
+        .btn-buy { border-color: var(--neon-green); color: var(--neon-green); }
+        .btn-buy:hover { background: var(--neon-green); color: #000; }
+        .btn-sell { border-color: var(--neon-pink); color: var(--neon-pink); }
+        .btn-sell:hover { background: var(--neon-pink); color: #000; }
+        .btn-short { border-color: var(--neon-amber); color: var(--neon-amber); }
+        .btn-short:hover { background: var(--neon-amber); color: #000; }
+    </style>
+</head>
+<body>
+
+    <div id="boot-sequence">
+        <div class="boot-text" id="boot-text">ESTABLISHING CONNECTION...</div>
+        <div class="progress-bar"><div class="progress-fill" id="boot-fill"></div></div>
+    </div>
+
+    <div class="ticker-wrap"><div class="ticker" id="scrollingTicker"></div></div>
+
+    <div class="container" id="main-interface">
+        <div class="header-bar">
+            <div>
+                <h1>Zurich Orbital</h1>
+                <div style="font-size: 0.8em; letter-spacing: 2px; color: #666;">MARKET SIM v9.1 // JACKED IN</div>
+            </div>
+            <div style="text-align: right;">
+                <div id="marketStatus" style="color: var(--neon-green); font-weight: bold;">MARKET OPEN</div>
+                <div id="nextUpdate" style="font-size: 0.8em; color: #666;">TICK RATE: 5s</div>
+            </div>
+        </div>
+
+        <div class="tabs">
+            <div class="tab-btn active" onclick="sim.tab('market', this)">MARKET DATA</div>
+            <div class="tab-btn" onclick="sim.tab('trade', this)">TRADING FLOOR</div>
+            <div class="tab-btn" onclick="sim.tab('charts', this)">ANALYTICS</div>
+            <div class="tab-btn" onclick="sim.tab('gm', this)">GM TOOLS</div>
+        </div>
+
+        <div id="tab-market" class="tab-content active">
+            <div class="control-panel">
+                <button onclick="sim.togglePause()">PAUSE / RESUME</button>
+                <div><label>SPEED:</label><select id="speedSelect" onchange="sim.setSpeed(this.value)"><option value="5000">NORMAL (5s)</option><option value="1000">TURBO (1s)</option></select></div>
+            </div>
+            <table id="stockTable">
+                <thead><tr><th>SYMB</th><th>CORPORATION</th><th>PRICE (¥)</th><th>CHANGE</th><th>OWNED %</th><th>AVAIL FLOAT</th><th>STATUS</th></tr></thead>
+                <tbody id="stockTableBody"></tbody>
+            </table>
+        </div>
+
+        <div id="tab-trade" class="tab-content">
+            <div class="control-panel">
+                <button onclick="sim.togglePause()" style="grid-column:1/-1;">PAUSE / RESUME SIMULATION</button>
+            </div>
+            <div class="trade-grid">
+                <div class="card" style="border-color: var(--neon-blue);">
+                    <h3 style="color:var(--neon-blue); margin-top:0;">COMMLINK TRADE</h3>
+                    <div style="margin-bottom:15px;">
+                        <label>ACTIVE IDENTITY</label>
+                        <select id="playerSelect" onchange="sim.updateUI()"><option>Select Identity...</option></select>
+                    </div>
+                    <div style="margin-bottom:15px;">
+                        <label>ASSET</label>
+                        <select id="stockSelect" onchange="sim.updateQuote()"><option>Select Asset...</option></select>
+                    </div>
+                    <div id="quoteBox" style="background:#000; padding:10px; margin-bottom:15px; border:1px dashed #444; display:none;">
+                        <div class="stat-row"><span class="stat-label">PRICE:</span> <span class="stat-val" id="qPrice">--</span></div>
+                        <div class="stat-row"><span class="stat-label">FLOAT:</span> <span class="stat-val" id="qFloat">--</span></div>
+                        <div class="stat-row"><span class="stat-label">OWNED:</span> <span class="stat-val" id="qOwned">--</span></div>
+                        <div class="stat-row"><span class="stat-label">POSITION:</span> <span class="stat-val" id="qPos">--</span></div>
+                    </div>
+                    <div style="margin-bottom:10px;">
+                        <label>AMOUNT (SHARES)</label>
+                        <input type="number" id="tradeAmt" placeholder="0">
+                    </div>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:5px; margin-bottom:5px;">
+                        <button class="btn-buy" onclick="sim.trade('buy')">BUY</button>
+                        <button class="btn-sell" onclick="sim.trade('sell')">SELL</button>
+                    </div>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:5px;">
+                        <button class="btn-buy" style="border-style:dashed;" onclick="sim.trade('margin_buy')">MARGIN BUY (DEBT)</button>
+                        <button class="btn-short" onclick="sim.trade('short')">SHORT SELL</button>
+                    </div>
+                    <div style="font-size:0.7em; color:#666; margin-top:5px; text-align:center;">*Note: Selling assets auto-pays existing margin debt.</div>
+                </div>
+
+                <div>
+                    <div id="walletGrid" class="wallet-grid"></div>
+                    <div class="card" style="margin-top:20px;">
+                        <h4>TRANSACTION LOG</h4>
+                        <div id="transLog" class="log-box"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-charts" class="tab-content">
+            <select id="chartSelect" onchange="sim.renderChart()" style="width:200px; margin-bottom:10px;"></select>
+            <div style="height:500px;"><canvas id="mainChart"></canvas></div>
+        </div>
+
+        <div id="tab-gm" class="tab-content">
+            <div class="control-panel" style="border-color:var(--neon-pink);">
+                <h3 style="color:var(--neon-pink); margin:0; grid-column:1/-1;">PLAYER ECONOMY & DEBT</h3>
+                <div>
+                    <label>SELECT PLAYER</label>
+                    <select id="gmPlayerSelect"><option>Select...</option></select>
+                </div>
+                <div>
+                    <label>INJECT CASH</label>
+                    <input type="number" id="gmCashAmt" placeholder="Amount">
+                </div>
+                <div style="display:flex; align-items:flex-end;">
+                    <button onclick="sim.injectCash()" style="width:100%; border-color:var(--neon-pink); color:var(--neon-pink);">ADD CASH</button>
+                </div>
+                <div>
+                    <label>MARGIN INTEREST RATE (%)</label>
+                    <input type="number" id="gmInterest" value="5" onchange="sim.settings.interestRate = this.value / 100">
+                </div>
+            </div>
+
+            <div class="control-panel" style="border-color:var(--neon-green);">
+                <h3 style="color:var(--neon-green); margin:0; grid-column:1/-1;">CORPORATE OVERSIGHT (EDIT / REMOVE)</h3>
+                <div><label>SELECT CORP</label><select id="gmStockSelect" onchange="sim.loadEditCorp()"><option>Select...</option></select></div>
+                <div><label>NAME</label><input type="text" id="editName"></div>
+                <div><label>PRICE (¥)</label><input type="number" id="editPrice"></div>
+                <div><label>TOTAL SHARES</label><input type="number" id="editTotal"></div>
+                <div><label>OWNED %</label><input type="number" id="editOwned"></div>
+                <div style="display:flex; align-items:center;">
+                    <label style="width:auto; margin-right:10px;">PRIVATE?</label>
+                    <input type="checkbox" id="editPrivate" style="width:auto;">
+                </div>
+                <div style="grid-column:1/-1; display:flex; gap:10px;">
+                    <button onclick="sim.saveEditCorp()" style="flex:1;">SAVE CHANGES</button>
+                    <button onclick="sim.deleteCorp()" style="flex:1; border-color:var(--neon-red); color:var(--neon-red);">DELETE CORP</button>
+                </div>
+            </div>
+
+            <div class="control-panel" style="border-color: var(--neon-blue);">
+                <h3 style="color:var(--neon-blue); margin:0; grid-column:1/-1;">IPO LAUNCHPAD (ADD CORP)</h3>
+                <div><label>SYMBOL</label><input type="text" id="ipoSym" placeholder="ABCD"></div>
+                <div><label>NAME</label><input type="text" id="ipoName" placeholder="Corporation Name"></div>
+                <div><label>PRICE</label><input type="number" id="ipoPrice" value="100"></div>
+                <div><label>TOTAL SHARES</label><input type="number" id="ipoTotal" value="10000000"></div>
+                <div><label>OWNED %</label><input type="number" id="ipoOwned" value="50"></div>
+                <div style="display:flex; align-items:center;">
+                    <label style="width:auto; margin-right:10px;">PRIVATE?</label>
+                    <input type="checkbox" id="ipoPrivate" style="width:auto;">
+                </div>
+                <button onclick="sim.addCorp()" style="grid-column:1/-1;">LAUNCH NEW STOCK</button>
+            </div>
+
+            <div class="control-panel" style="border-color:var(--neon-amber);">
+                <h3 style="color:var(--neon-amber); margin:0;">GM OVERRIDE</h3>
+                <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:10px;">
+                    <button onclick="sim.triggerEvent('crash')">📉 CRASH</button>
+                    <button onclick="sim.triggerEvent('boom')">📈 BOOM</button>
+                    <button onclick="sim.triggerEvent('magic')">✨ MANA</button>
+                    <button onclick="sim.timeSkip()">⏩ SKIP WEEK</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <h4>PLAYER AUDIT</h4>
+                <table id="auditTable">
+                    <thead><tr><th>NAME</th><th>CASH</th><th>DEBT</th><th>NET WORTH</th></tr></thead>
+                    <tbody id="auditBody"></tbody>
+                </table>
+            </div>
+
+            <div class="control-panel" style="margin-top:20px;">
+                <h4 style="margin:0 0 10px 0;">DATA MANAGEMENT</h4>
+                <div style="display:flex; gap:10px;">
+                    <button onclick="sim.exportData()">💾 SAVE</button>
+                    <input type="file" id="importFile" style="width:auto;">
+                    <button onclick="sim.importData()">📂 LOAD</button>
+                    <button onclick="sim.reset()">❌ WIPE</button>
+                </div>
+            </div>
+            
+            <div style="margin-top:20px;">
+                <h4>NEW IDENTITY</h4>
+                <input type="text" id="newPName" placeholder="Handle" style="width:200px;">
+                <input type="number" id="newPCash" value="100000" style="width:150px;">
+                <button onclick="sim.addPlayer()" style="width:auto;">CREATE</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const sim = {
+            stocks: [
+                { sym: "SK",   name: "Saeder-Krupp",    price: 4500000.00, basePrice: 3600000.00, total: 100000000, owned: 100, private: true,  vol: 0.5, history: [] },
+                { sym: "MCT",  name: "Mitsuhama",       price: 4025000.00, basePrice: 4025000.00, total: 100000000, owned: 64,  private: false, vol: 1.0, history: [] },
+                { sym: "ARES", name: "Ares Macro",      price: 428571.43,  basePrice: 428571.43,  total: 700000000, owned: 65,  private: false, vol: 1.2, history: [] },
+                { sym: "AZT",  name: "Aztechnology",    price: 540000.00,  basePrice: 540000.00,  total: 100000000, owned: 100, private: true,  vol: 0.5, history: [] },
+                { sym: "EVO",  name: "Evo Corp",        price: 37500.00,   basePrice: 37500.00,   total: 5000000000, owned: 67, private: false, vol: 1.5, history: [] },
+                { sym: "RCS",  name: "Renraku",         price: 540000.00,  basePrice: 540000.00,  total: 200000000, owned: 55,  private: false, vol: 1.0, history: [] },
+                { sym: "S-K",  name: "Shiawase",        price: 2986.67,    basePrice: 2986.67,    total: 150000000, owned: 55,  private: false, vol: 1.0, history: [] },
+                { sym: "SPIN", name: "Spinrad Global",  price: 8470.59,    basePrice: 8470.59,    total: 170000000, owned: 78,  private: false, vol: 2.0, history: [] },
+                { sym: "WUX",  name: "Wuxing Inc",      price: 72000.00,   basePrice: 72000.00,   total: 100000000, owned: 63,  private: false, vol: 1.1, history: [] },
+                { sym: "MAI",  name: "Matrix Assets Inc.", price: 125000.00, basePrice: 125000.00, total: 300000000, owned: 45, private: false, vol: 1.1, history: [] },
+                { sym: "LVG",  name: "Louis Vuitton Group", price: 140000.00, basePrice: 140000.00, total: 150000000, owned: 60, private: false, vol: 0.9, history: [] },
+                { sym: "SHG",  name: "Shangui Corporation", price: 85000.00,  basePrice: 85000.00,  total: 400000000, owned: 30, private: false, vol: 1.2, history: [] },
+                { sym: "MCK",  name: "McKee Foods",       price: 45000.00,  basePrice: 45000.00,  total: 250000000, owned: 75, private: false, vol: 0.8, history: [] },
+                { sym: "PNZ",  name: "Penzo",             price: 52000.00,  basePrice: 52000.00,  total: 200000000, owned: 40, private: false, vol: 1.3, history: [] },
+                { sym: "AQA",  name: "Aqua Arcana",       price: 98000.00,  basePrice: 98000.00,  total: 100000000, owned: 80, private: true,  vol: 1.5, history: [] },
+                { sym: "TZU",  name: "Tzuri Group",       price: 76000.00,  basePrice: 76000.00,  total: 180000000, owned: 55, private: false, vol: 1.1, history: [] },
+                { sym: "WDE",  name: "Weekday Eclipse",   price: 64000.00,  basePrice: 64000.00,  total: 120000000, owned: 65, private: false, vol: 1.4, history: [] },
+                { sym: "SCE",  name: "Shibata Const.",    price: 110000.00, basePrice: 110000.00, total: 250000000, owned: 45, private: false, vol: 0.9, history: [] },
+                { sym: "SAM",  name: "Samir Corporation", price: 58000.00,  basePrice: 58000.00,  total: 300000000, owned: 35, private: false, vol: 1.2, history: [] },
+                { sym: "HELV", name: "Helvetica Group",   price: 89000.00,  basePrice: 89000.00,  total: 150000000, owned: 50, private: false, vol: 1.0, history: [] },
+                { sym: "EWM",  name: "EarthWyrm Media",   price: 72000.00,  basePrice: 72000.00,  total: 450000000, owned: 25, private: false, vol: 1.3, history: [] },
+                { sym: "GLK",  name: "Glock Group",       price: 105000.00, basePrice: 105000.00, total: 200000000, owned: 70, private: false, vol: 1.1, history: [] },
+                { sym: "DRG",  name: "Drägerwerke",       price: 66000.00,  basePrice: 66000.00,  total: 180000000, owned: 55, private: false, vol: 1.0, history: [] },
+                { sym: "HBG",  name: "Hamburg Bank",      price: 135000.00, basePrice: 135000.00, total: 500000000, owned: 40, private: false, vol: 0.7, history: [] },
+                { sym: "FCB",  name: "Focused Consult",   price: 94000.00,  basePrice: 94000.00,  total: 100000000, owned: 85, private: true,  vol: 0.9, history: [] },
+                { sym: "FRE",  name: "France Energy",     price: 115000.00, basePrice: 115000.00, total: 600000000, owned: 30, private: false, vol: 0.8, history: [] },
+                { sym: "NABS", name: "Native Broadcast",  price: 48000.00,  basePrice: 48000.00,  total: 250000000, owned: 60, private: false, vol: 1.2, history: [] },
+                { sym: "BRX",  name: "Brúixola Arch.",    price: 55000.00,  basePrice: 55000.00,  total: 80000000,  owned: 75, private: false, vol: 1.1, history: [] },
+                { sym: "ENO",  name: "Enovos Int.",       price: 82000.00,  basePrice: 82000.00,  total: 350000000, owned: 45, private: false, vol: 0.9, history: [] },
+                { sym: "PAUL", name: "Paulaner Brewery",  price: 61000.00,  basePrice: 61000.00,  total: 150000000, owned: 50, private: false, vol: 0.8, history: [] },
+                { sym: "XDG",  name: "10,000 Daggers",    price: 120000.00, basePrice: 120000.00, total: 50000000,  owned: 100, private: true,  vol: 1.5, history: [] },
+                { sym: "DMK",  name: "DeMeKo",            price: 95000.00,  basePrice: 95000.00,  total: 400000000, owned: 35, private: false, vol: 1.1, history: [] },
+                { sym: "MIG",  name: "Migross",           price: 42000.00,  basePrice: 42000.00,  total: 200000000, owned: 65, private: false, vol: 1.0, history: [] },
+                { sym: "PDH",  name: "Porsche Dornier",   price: 145000.00, basePrice: 145000.00, total: 300000000, owned: 55, private: false, vol: 0.9, history: [] },
+                { sym: "ALM",  name: "Alchemy Mix",       price: 78000.00,  basePrice: 78000.00,  total: 100000000, owned: 80, private: false, vol: 1.4, history: [] },
+                { sym: "APX",  name: "Apex Plasmids",     price: 112000.00, basePrice: 112000.00, total: 150000000, owned: 60, private: false, vol: 1.3, history: [] },
+                { sym: "TTE",  name: "Tan Tien Ent.",     price: 99000.00,  basePrice: 99000.00,  total: 250000000, owned: 40, private: false, vol: 1.2, history: [] },
+                { sym: "DTR",  name: "Deutsche Treuhand", price: 130000.00, basePrice: 130000.00, total: 500000000, owned: 30, private: false, vol: 0.7, history: [] },
+                { sym: "PSI",  name: "PSI-Aid",           price: 68000.00,  basePrice: 68000.00,  total: 120000000, owned: 70, private: false, vol: 1.1, history: [] },
+                { sym: "CEN",  name: "Centurion Corp",    price: 88000.00,  basePrice: 88000.00,  total: 200000000, owned: 50, private: false, vol: 1.0, history: [] },
+                { sym: "TIC",  name: "Telestrian Ind.",   price: 150000.00, basePrice: 150000.00, total: 100000000, owned: 90, private: true,  vol: 0.8, history: [] },
+                { sym: "CAM",  name: "Centurion Magicks", price: 105000.00, basePrice: 105000.00, total: 80000000,  owned: 65, private: false, vol: 1.4, history: [] },
+                { sym: "AMS",  name: "Amalgamated",       price: 54000.00,  basePrice: 54000.00,  total: 300000000, owned: 45, private: false, vol: 1.2, history: [] },
+                { sym: "CATD", name: "CATDRN",            price: 71000.00,  basePrice: 71000.00,  total: 150000000, owned: 60, private: false, vol: 1.3, history: [] },
+                { sym: "WMT",  name: "Walmart",           price: 62000.00,  basePrice: 62000.00,  total: 800000000, owned: 20, private: false, vol: 0.8, history: [] },
+                { sym: "KMI",  name: "Kami Consulting",   price: 86000.00,  basePrice: 86000.00,  total: 50000000,  owned: 85, private: true,  vol: 1.0, history: [] },
+                { sym: "EVR",  name: "EveRest",           price: 49000.00,  basePrice: 49000.00,  total: 200000000, owned: 55, private: false, vol: 1.1, history: [] },
+                { sym: "ETA",  name: "Eta Engineering",   price: 77000.00,  basePrice: 77000.00,  total: 120000000, owned: 65, private: false, vol: 1.2, history: [] },
+                { sym: "DAL",  name: "Dallmayr",          price: 51000.00,  basePrice: 51000.00,  total: 100000000, owned: 70, private: false, vol: 0.9, history: [] },
+                { sym: "SDP",  name: "Steyr-Daimler",     price: 92000.00,  basePrice: 92000.00,  total: 250000000, owned: 45, private: false, vol: 1.1, history: [] },
+                { sym: "BOS",  name: "Bosaso Ent.",       price: 46000.00,  basePrice: 46000.00,  total: 180000000, owned: 60, private: false, vol: 1.3, history: [] },
+                { sym: "AQD",  name: "AquaDyne",          price: 84000.00,  basePrice: 84000.00,  total: 150000000, owned: 50, private: false, vol: 1.2, history: [] },
+                { sym: "PHX",  name: "Phalanx Group",     price: 118000.00, basePrice: 118000.00, total: 100000000, owned: 75, private: false, vol: 1.0, history: [] },
+                { sym: "FSN",  name: "Farsightedness",    price: 63000.00,  basePrice: 63000.00,  total: 90000000,  owned: 80, private: true,  vol: 1.4, history: [] },
+                { sym: "KHC",  name: "Khouang Combine",   price: 102000.00, basePrice: 102000.00, total: 300000000, owned: 40, private: false, vol: 1.1, history: [] },
+                { sym: "TVA",  name: "Tennessee Valley",  price: 75000.00,  basePrice: 75000.00,  total: 400000000, owned: 25, private: false, vol: 0.8, history: [] },
+                { sym: "RMP",  name: "Responsible Matrix",price: 88000.00,  basePrice: 88000.00,  total: 200000000, owned: 55, private: false, vol: 1.0, history: [] },
+                { sym: "FCBA", name: "FC Barcelona",      price: 130000.00, basePrice: 130000.00, total: 50000000,  owned: 60, private: false, vol: 1.5, history: [] },
+                { sym: "MES",  name: "Mesametric",        price: 91000.00,  basePrice: 91000.00,  total: 150000000, owned: 65, private: false, vol: 1.2, history: [] },
+                { sym: "WAA",  name: "Westphalian Ag.",   price: 44000.00,  basePrice: 44000.00,  total: 250000000, owned: 45, private: false, vol: 0.9, history: [] },
+                { sym: "WDS",  name: "Warp drive sys.",   price: 140000.00, basePrice: 140000.00, total: 80000000,  owned: 85, private: false, vol: 1.6, history: [] },
+                { sym: "MKS",  name: "Middle Kingdom",    price: 79000.00,  basePrice: 79000.00,  total: 200000000, owned: 50, private: false, vol: 1.1, history: [] },
+                { sym: "SNE",  name: "Sunrise Elec.",     price: 68000.00,  basePrice: 68000.00,  total: 300000000, owned: 35, private: false, vol: 1.3, history: [] },
+                { sym: "IZO",  name: "Izolo Inc.",        price: 56000.00,  basePrice: 56000.00,  total: 120000000, owned: 60, private: false, vol: 1.4, history: [] },
+                { sym: "HKG",  name: "Heckler & Koch",    price: 115000.00, basePrice: 115000.00, total: 150000000, owned: 55, private: false, vol: 1.0, history: [] },
+                { sym: "ZAM",  name: "Zion Amalgamated",  price: 108000.00, basePrice: 108000.00, total: 200000000, owned: 45, private: false, vol: 1.2, history: [] },
+                { sym: "CRZ",  name: "Czech Zbrojovka",   price: 73000.00,  basePrice: 73000.00,  total: 100000000, owned: 70, private: false, vol: 1.1, history: [] },
+                { sym: "FAI",  name: "Franklin Assoc.",   price: 65000.00,  basePrice: 65000.00,  total: 180000000, owned: 50, private: false, vol: 0.9, history: [] },
+                { sym: "BKI",  name: "Brackhaven Inv.",   price: 125000.00, basePrice: 125000.00, total: 250000000, owned: 40, private: false, vol: 1.2, history: [] },
+                { sym: "CRI",  name: "Community Resp.",   price: 47000.00,  basePrice: 47000.00,  total: 300000000, owned: 30, private: false, vol: 1.0, history: [] },
+                { sym: "MCL",  name: "Microlens",         price: 81000.00,  basePrice: 81000.00,  total: 150000000, owned: 60, private: false, vol: 1.3, history: [] },
+                { sym: "ZOE",  name: "Zoe",               price: 135000.00, basePrice: 135000.00, total: 80000000,  owned: 80, private: true,  vol: 1.4, history: [] },
+                { sym: "BMG",  name: "Bavaria Media",     price: 70000.00,  basePrice: 70000.00,  total: 200000000, owned: 55, private: false, vol: 1.1, history: [] },
+                { sym: "MGN",  name: "MagicNet",          price: 148000.00, basePrice: 148000.00, total: 100000000, owned: 75, private: false, vol: 1.5, history: [] },
+                { sym: "HPC",  name: "High Plains",       price: 88000.00,  basePrice: 88000.00,  total: 120000000, owned: 65, private: false, vol: 1.2, history: [] },
+                { sym: "GTI",  name: "Gravitational Tech",price: 112000.00, basePrice: 112000.00, total: 90000000,  owned: 70, private: false, vol: 1.6, history: [] },
+                { sym: "WLM",  name: "Wallid Materials",  price: 59000.00,  basePrice: 59000.00,  total: 250000000, owned: 40, private: false, vol: 1.0, history: [] },
+                { sym: "FIG",  name: "FIGURE",            price: 93000.00,  basePrice: 93000.00,  total: 150000000, owned: 50, private: false, vol: 1.3, history: [] },
+                { sym: "MRG",  name: "Market Research",   price: 76000.00,  basePrice: 76000.00,  total: 180000000, owned: 60, private: false, vol: 0.9, history: [] },
+                { sym: "UOI",  name: "United Oil Ind.",   price: 110000.00, basePrice: 110000.00, total: 400000000, owned: 35, private: false, vol: 1.1, history: [] },
+                { sym: "SKC",  name: "Saiki Corp",        price: 105000.00, basePrice: 105000.00, total: 200000000, owned: 55, private: false, vol: 1.2, history: [] },
+                { sym: "PYO",  name: "Pyramid Ops",       price: 82000.00,  basePrice: 82000.00,  total: 100000000, owned: 65, private: false, vol: 1.4, history: [] },
+                { sym: "ABO",  name: "Athabaskan Oil",    price: 125000.00, basePrice: 125000.00, total: 350000000, owned: 45, private: false, vol: 1.0, history: [] },
+                { sym: "SWJ",  name: "Swarovski Joop",    price: 142000.00, basePrice: 142000.00, total: 120000000, owned: 75, private: false, vol: 1.1, history: [] },
+                { sym: "KIG",  name: "Kigune",            price: 66000.00,  basePrice: 66000.00,  total: 150000000, owned: 50, private: false, vol: 1.3, history: [] },
+                { sym: "PMT",  name: "Peat-Marwick",      price: 98000.00,  basePrice: 98000.00,  total: 200000000, owned: 40, private: false, vol: 0.8, history: [] },
+                { sym: "EGS",  name: "Eagle Security",    price: 85000.00,  basePrice: 85000.00,  total: 300000000, owned: 60, private: false, vol: 1.1, history: [] },
+                { sym: "CNT",  name: "Centurion",         price: 74000.00,  basePrice: 74000.00,  total: 180000000, owned: 55, private: false, vol: 1.0, history: [] },
+                { sym: "CAT",  name: "Cross Applied",     price: 115000.00, basePrice: 115000.00, total: 250000000, owned: 45, private: false, vol: 1.3, history: [] },
+                { sym: "ODN",  name: "Ödnur Holding",     price: 69000.00,  basePrice: 69000.00,  total: 100000000, owned: 65, private: false, vol: 1.2, history: [] },
+                { sym: "ZEN",  name: "Zenith AG",         price: 130000.00, basePrice: 130000.00, total: 200000000, owned: 50, private: false, vol: 1.1, history: [] },
+                { sym: "KML",  name: "Komatsu Limited",   price: 28000.00,  basePrice: 28000.00,  total: 250000000, owned: 40, private: false, vol: 1.1, history: [] },
+                { sym: "SNI",  name: "Société Nat.",      price: 32000.00,  basePrice: 32000.00,  total: 150000000, owned: 60, private: false, vol: 1.3, history: [] },
+                { sym: "MER",  name: "Merenati",          price: 18000.00,  basePrice: 18000.00,  total: 100000000, owned: 55, private: false, vol: 1.4, history: [] },
+                { sym: "ZIC",  name: "Zeta-ImpChem",      price: 35000.00,  basePrice: 35000.00,  total: 200000000, owned: 45, private: false, vol: 1.0, history: [] },
+                { sym: "CITI", name: "Citi Group",        price: 25000.00,  basePrice: 25000.00,  total: 350000000, owned: 30, private: false, vol: 0.9, history: [] },
+                { sym: "SWG",  name: "Swiss Genome",      price: 31000.00,  basePrice: 31000.00,  total: 120000000, owned: 65, private: false, vol: 1.5, history: [] },
+                { sym: "LHD",  name: "Lockheed Corp",     price: 29000.00,  basePrice: 29000.00,  total: 300000000, owned: 40, private: false, vol: 1.1, history: [] },
+                { sym: "CHM",  name: "Chemistry Group",   price: 15000.00,  basePrice: 15000.00,  total: 180000000, owned: 50, private: false, vol: 1.2, history: [] },
+                { sym: "INC",  name: "Incan Power",       price: 22000.00,  basePrice: 22000.00,  total: 200000000, owned: 55, private: false, vol: 1.0, history: [] },
+                { sym: "MRSK", name: "Mærsk Inc.",        price: 34000.00,  basePrice: 34000.00,  total: 150000000, owned: 45, private: false, vol: 0.8, history: [] },
+                { sym: "TRN",  name: "Transys Neuronet",  price: 27000.00,  basePrice: 27000.00,  total: 100000000, owned: 70, private: false, vol: 1.6, history: [] },
+                { sym: "KITT", name: "Kolkata Talent",    price: 19000.00,  basePrice: 19000.00,  total: 250000000, owned: 35, private: false, vol: 1.3, history: [] },
+                { sym: "FBA",  name: "Frankfurt Bank",    price: 30000.00,  basePrice: 30000.00,  total: 300000000, owned: 40, private: false, vol: 0.9, history: [] },
+                { sym: "HKB",  name: "Hildebrandt",       price: 26000.00,  basePrice: 26000.00,  total: 180000000, owned: 60, private: false, vol: 1.1, history: [] },
+                { sym: "KWH",  name: "Kwonham Ind.",      price: 21000.00,  basePrice: 21000.00,  total: 150000000, owned: 50, private: false, vol: 1.2, history: [] },
+                { sym: "PROV", name: "Providence Corp",   price: 33000.00,  basePrice: 33000.00,  total: 120000000, owned: 75, private: true,  vol: 1.4, history: [] },
+                { sym: "SONY", name: "Sony Corporation",  price: 24000.00,  basePrice: 24000.00,  total: 400000000, owned: 30, private: false, vol: 1.0, history: [] },
+                { sym: "UOT",  name: "Universal Omnitech",price: 29000.00,  basePrice: 29000.00,  total: 200000000, owned: 45, private: false, vol: 1.3, history: [] },
+                { sym: "ESUS", name: "European Shuttle",  price: 17000.00,  basePrice: 17000.00,  total: 100000000, owned: 65, private: false, vol: 1.5, history: [] },
+                { sym: "COLT", name: "Colt Mfg.",         price: 22000.00,  basePrice: 22000.00,  total: 250000000, owned: 40, private: false, vol: 1.1, history: [] },
+                { sym: "ERC",  name: "Erica",             price: 16000.00,  basePrice: 16000.00,  total: 80000000,  owned: 70, private: false, vol: 1.4, history: [] },
+                { sym: "TNR",  name: "Tanamyre Res.",     price: 20000.00,  basePrice: 20000.00,  total: 300000000, owned: 35, private: false, vol: 1.2, history: [] },
+                { sym: "KND",  name: "KondOrchid SA",     price: 25000.00,  basePrice: 25000.00,  total: 150000000, owned: 55, private: false, vol: 1.3, history: [] },
+                { sym: "SMSG", name: "Samsung Corp",      price: 31000.00,  basePrice: 31000.00,  total: 350000000, owned: 40, private: false, vol: 1.0, history: [] },
+                { sym: "PRT",  name: "Proteus",           price: 34000.00,  basePrice: 34000.00,  total: 120000000, owned: 60, private: true,  vol: 1.6, history: [] },
+                { sym: "RLT",  name: "Reality Inc.",      price: 18000.00,  basePrice: 18000.00,  total: 100000000, owned: 65, private: false, vol: 1.5, history: [] },
+                { sym: "ZUR",  name: "Zurich Investments",price: 28000.00,  basePrice: 28000.00,  total: 250000000, owned: 45, private: false, vol: 0.9, history: [] },
+                { sym: "YAK",  name: "Yakashima Tech",    price: 26000.00,  basePrice: 26000.00,  total: 200000000, owned: 50, private: false, vol: 1.2, history: [] },
+                { sym: "AERO", name: "Aerospatiale SA",   price: 23000.00,  basePrice: 23000.00,  total: 180000000, owned: 40, private: false, vol: 1.1, history: [] },
+                { sym: "IAXA", name: "Index-AXA",         price: 21000.00,  basePrice: 21000.00,  total: 300000000, owned: 35, private: false, vol: 1.0, history: [] },
+                { sym: "RJI",  name: "Regulus Joint",     price: 19000.00,  basePrice: 19000.00,  total: 150000000, owned: 55, private: false, vol: 1.4, history: [] },
+                { sym: "BKI2", name: "Brackhaven (Sub)",  price: 15000.00,  basePrice: 15000.00,  total: 100000000, owned: 60, private: false, vol: 1.3, history: [] },
+                { sym: "TRK",  name: "Trikon Holding",    price: 24000.00,  basePrice: 24000.00,  total: 200000000, owned: 45, private: false, vol: 1.2, history: [] },
+                { sym: "MNB",  name: "Monobe Int.",       price: 32000.00,  basePrice: 32000.00,  total: 250000000, owned: 50, private: false, vol: 1.1, history: [] },
+                { sym: "VDA",  name: "Vedacorp",          price: 17000.00,  basePrice: 17000.00,  total: 120000000, owned: 70, private: false, vol: 1.5, history: [] },
+                { sym: "YSE",  name: "Yang Su Ent.",      price: 20000.00,  basePrice: 20000.00,  total: 180000000, owned: 55, private: false, vol: 1.3, history: [] },
+                { sym: "TRU",  name: "Truman Tech",       price: 27000.00,  basePrice: 27000.00,  total: 150000000, owned: 60, private: false, vol: 1.2, history: [] },
+                { sym: "FBOE", name: "Federated Boeing",  price: 33000.00,  basePrice: 33000.00,  total: 200000000, owned: 45, private: false, vol: 1.0, history: [] },
+                { sym: "OMN",  name: "OmniStar",          price: 25000.00,  basePrice: 25000.00,  total: 100000000, owned: 65, private: false, vol: 1.4, history: [] },
+                { sym: "VQE",  name: "VisionQuest Ent.",  price: 22000.00,  basePrice: 22000.00,  total: 250000000, owned: 40, private: false, vol: 1.1, history: [] },
+                { sym: "IWS",  name: "Integrated Weapon", price: 29000.00,  basePrice: 29000.00,  total: 180000000, owned: 50, private: false, vol: 1.3, history: [] },
+                { sym: "LLP",  name: "Lami Look Page",    price: 14000.00,  basePrice: 14000.00,  total: 80000000,  owned: 75, private: false, vol: 1.6, history: [] },
+                { sym: "WIN",  name: "Winter Systems",    price: 26000.00,  basePrice: 26000.00,  total: 150000000, owned: 55, private: false, vol: 1.2, history: [] },
+                { sym: "SHIN", name: "ShinSiam",          price: 19000.00,  basePrice: 19000.00,  total: 200000000, owned: 45, private: false, vol: 1.4, history: [] },
+                { sym: "SPT",  name: "SpiriTech Corp",    price: 31000.00,  basePrice: 31000.00,  total: 120000000, owned: 60, private: false, vol: 1.5, history: [] },
+                { sym: "NAG",  name: "Nagato Combine",    price: 28000.00,  basePrice: 28000.00,  total: 250000000, owned: 40, private: false, vol: 1.1, history: [] },
+                { sym: "OMVV", name: "OMV-V",             price: 23000.00,  basePrice: 23000.00,  total: 180000000, owned: 50, private: false, vol: 1.0, history: [] },
+                { sym: "YKG",  name: "Yokogawa Corp",     price: 21000.00,  basePrice: 21000.00,  total: 200000000, owned: 45, private: false, vol: 1.2, history: [] },
+                { sym: "EMD",  name: "Earth Medicine",    price: 16000.00,  basePrice: 16000.00,  total: 100000000, owned: 65, private: false, vol: 1.4, history: [] },
+                { sym: "VRI",  name: "Virtual Reality",   price: 30000.00,  basePrice: 30000.00,  total: 150000000, owned: 55, private: false, vol: 1.3, history: [] },
+                { sym: "ETC",  name: "Eastern Tiger",     price: 24000.00,  basePrice: 24000.00,  total: 250000000, owned: 40, private: false, vol: 1.1, history: [] },
+                { sym: "FORD", name: "Ford Motor Co.",    price: 18000.00,  basePrice: 18000.00,  total: 300000000, owned: 35, private: false, vol: 1.2, history: [] },
+                { sym: "GAEA", name: "Gaeatronics",       price: 27000.00,  basePrice: 27000.00,  total: 180000000, owned: 50, private: false, vol: 1.4, history: [] },
+                { sym: "NVT",  name: "Novatech",          price: 34000.00,  basePrice: 34000.00,  total: 200000000, owned: 60, private: false, vol: 1.1, history: [] },
+                { sym: "NYPD", name: "NYPD, Inc.",        price: 29000.00,  basePrice: 29000.00,  total: 150000000, owned: 45, private: false, vol: 1.0, history: [] },
+                { sym: "TRO",  name: "Trans orbital",     price: 25000.00,  basePrice: 25000.00,  total: 120000000, owned: 70, private: false, vol: 1.5, history: [] },
+                { sym: "HYU",  name: "Hyundais",          price: 32000.00,  basePrice: 32000.00,  total: 350000000, owned: 30, private: false, vol: 1.2, history: [] },
+                { sym: "BRV",  name: "BERVAG",            price: 3500.00,   basePrice: 3500.00,   total: 50000000,  owned: 60, private: false, vol: 1.8, history: [] },
+                { sym: "KOB",  name: "Kaplan-Özdemir",    price: 2800.00,   basePrice: 2800.00,   total: 30000000,  owned: 45, private: false, vol: 2.1, history: [] },
+                { sym: "MOC",  name: "MultiOcto Corp",    price: 4100.00,   basePrice: 4100.00,   total: 80000000,  owned: 35, private: false, vol: 1.6, history: [] },
+                { sym: "KYU",  name: "Kyuusei Bio",       price: 3900.00,   basePrice: 3900.00,   total: 40000000,  owned: 50, private: false, vol: 1.9, history: [] },
+                { sym: "FUC",  name: "Fuchi Telecom",     price: 2200.00,   basePrice: 2200.00,   total: 100000000, owned: 25, private: false, vol: 1.5, history: [] },
+                { sym: "WET",  name: "Wettstein Inc.",    price: 1500.00,   basePrice: 1500.00,   total: 20000000,  owned: 70, private: false, vol: 2.2, history: [] },
+                { sym: "DHB",  name: "DocHarris Bodyshop",price: 3100.00,   basePrice: 3100.00,   total: 25000000,  owned: 65, private: false, vol: 1.7, history: [] },
+                { sym: "NJC",  name: "New Jersey Power",  price: 2700.00,   basePrice: 2700.00,   total: 60000000,  owned: 40, private: false, vol: 1.4, history: [] },
+                { sym: "AQD2", name: "AquaDyne (Sub)",    price: 1800.00,   basePrice: 1800.00,   total: 30000000,  owned: 55, private: false, vol: 2.0, history: [] },
+                { sym: "NAT",  name: "nature",            price: 900.00,    basePrice: 900.00,    total: 15000000,  owned: 80, private: false, vol: 2.5, history: [] },
+                { sym: "BDT",  name: "Bluedog Tunes",     price: 1200.00,   basePrice: 1200.00,   total: 25000000,  owned: 60, private: false, vol: 2.3, history: [] },
+                { sym: "GCG",  name: "Gottlieb Const.",   price: 3400.00,   basePrice: 3400.00,   total: 40000000,  owned: 50, private: false, vol: 1.6, history: [] },
+                { sym: "LAR",  name: "Long Arms",         price: 2600.00,   basePrice: 2600.00,   total: 35000000,  owned: 45, private: false, vol: 1.9, history: [] },
+                { sym: "HYQ",  name: "Hydro-Quebec",      price: 3800.00,   basePrice: 3800.00,   total: 80000000,  owned: 30, private: false, vol: 1.5, history: [] },
+                { sym: "MAG",  name: "M-Airport GmbH",    price: 2100.00,   basePrice: 2100.00,   total: 45000000,  owned: 55, private: false, vol: 1.8, history: [] },
+                { sym: "RGO",  name: "Rhinegold",         price: 1700.00,   basePrice: 1700.00,   total: 20000000,  owned: 75, private: false, vol: 2.1, history: [] },
+                { sym: "HIF",  name: "HiFlyer",           price: 1400.00,   basePrice: 1400.00,   total: 30000000,  owned: 65, private: false, vol: 2.4, history: [] },
+                { sym: "SKF",  name: "Schmalbach Food",   price: 2900.00,   basePrice: 2900.00,   total: 50000000,  owned: 40, private: false, vol: 1.7, history: [] },
+                { sym: "CBZ",  name: "Cityblitz",         price: 1100.00,   basePrice: 1100.00,   total: 10000000,  owned: 85, private: false, vol: 2.6, history: [] },
+                { sym: "FCBM", name: "FC Bayern Munich",  price: 4200.00,   basePrice: 4200.00,   total: 60000000,  owned: 35, private: false, vol: 1.5, history: [] },
+                { sym: "CRI2", name: "Come Rinn",         price: 800.00,    basePrice: 800.00,    total: 15000000,  owned: 70, private: false, vol: 2.3, history: [] },
+                { sym: "ALI",  name: "Andalusian Light",  price: 2400.00,   basePrice: 2400.00,   total: 35000000,  owned: 50, private: false, vol: 1.9, history: [] },
+                { sym: "DSP",  name: "Ducal Saxon Porc.", price: 3600.00,   basePrice: 3600.00,   total: 20000000,  owned: 60, private: false, vol: 1.6, history: [] },
+                { sym: "ANP",  name: "A&P",               price: 1900.00,   basePrice: 1900.00,   total: 40000000,  owned: 45, private: false, vol: 2.0, history: [] },
+                { sym: "KSA",  name: "KSAF",              price: 2200.00,   basePrice: 2200.00,   total: 25000000,  owned: 55, private: false, vol: 1.8, history: [] },
+                { sym: "PZN",  name: "Pizzeria Napoli",   price: 500.00,    basePrice: 500.00,    total: 10000000,  owned: 90, private: false, vol: 2.8, history: [] },
+                { sym: "ECG",  name: "Emerald City",      price: 2700.00,   basePrice: 2700.00,   total: 30000000,  owned: 50, private: false, vol: 1.7, history: [] },
+                { sym: "GTR",  name: "Group Trans",       price: 3100.00,   basePrice: 3100.00,   total: 45000000,  owned: 40, private: false, vol: 1.5, history: [] },
+                { sym: "NGB",  name: "North German Bro.", price: 2500.00,   basePrice: 2500.00,   total: 35000000,  owned: 45, private: false, vol: 1.9, history: [] },
+                { sym: "ABO2", name: "Athabaskan (Sub)",  price: 1800.00,   basePrice: 1800.00,   total: 20000000,  owned: 60, private: false, vol: 2.1, history: [] },
+                { sym: "ARE",  name: "Archon Enforce.",   price: 3800.00,   basePrice: 3800.00,   total: 50000000,  owned: 35, private: false, vol: 1.6, history: [] },
+                { sym: "KZS",  name: "Köz Sultan",        price: 1300.00,   basePrice: 1300.00,   total: 15000000,  owned: 75, private: false, vol: 2.4, history: [] },
+                { sym: "MHI",  name: "Manhattan Inc.",    price: 3300.00,   basePrice: 3300.00,   total: 40000000,  owned: 40, private: false, vol: 1.7, history: [] },
+                { sym: "COC",  name: "CoOpChrom",         price: 2600.00,   basePrice: 2600.00,   total: 25000000,  owned: 55, private: false, vol: 1.8, history: [] },
+                { sym: "FRF",  name: "Franzinger Fash.",  price: 1600.00,   basePrice: 1600.00,   total: 20000000,  owned: 65, private: false, vol: 2.2, history: [] },
+                { sym: "NPL",  name: "Northern Plastics", price: 2900.00,   basePrice: 2900.00,   total: 35000000,  owned: 50, private: false, vol: 1.6, history: [] },
+                { sym: "APH",  name: "Aphrodite Ent.",    price: 3700.00,   basePrice: 3700.00,   total: 45000000,  owned: 30, private: false, vol: 1.5, history: [] },
+                { sym: "KAL",  name: "Kalamari Inc.",     price: 2100.00,   basePrice: 2100.00,   total: 30000000,  owned: 45, private: false, vol: 2.0, history: [] },
+                { sym: "WFS",  name: "Westphal Farm",     price: 700.00,    basePrice: 700.00,    total: 10000000,  owned: 85, private: false, vol: 2.7, history: [] },
+                { sym: "PHP",  name: "Pala Health",       price: 3400.00,   basePrice: 3400.00,   total: 50000000,  owned: 40, private: false, vol: 1.7, history: [] },
+                { sym: "YPT",  name: "Yellow Point",      price: 1400.00,   basePrice: 1400.00,   total: 15000000,  owned: 70, private: false, vol: 2.3, history: [] },
+                { sym: "GND",  name: "Gasthof",           price: 600.00,    basePrice: 600.00,    total: 10000000,  owned: 80, private: false, vol: 2.8, history: [] },
+                { sym: "SAB",  name: "Schumacher Brandt", price: 2800.00,   basePrice: 2800.00,   total: 25000000,  owned: 55, private: false, vol: 1.9, history: [] },
+                { sym: "PPS",  name: "Papenburg ships",   price: 3900.00,   basePrice: 3900.00,   total: 60000000,  owned: 35, private: false, vol: 1.6, history: [] },
+                { sym: "AET",  name: "Aetherlux",         price: 2200.00,   basePrice: 2200.00,   total: 30000000,  owned: 60, private: false, vol: 2.1, history: [] },
+                { sym: "CRC",  name: "Carras Comms",      price: 1700.00,   basePrice: 1700.00,   total: 20000000,  owned: 65, private: false, vol: 2.2, history: [] },
+                { sym: "CKG",  name: "Curry King",        price: 900.00,    basePrice: 900.00,    total: 15000000,  owned: 75, private: false, vol: 2.5, history: [] },
+                { sym: "DPH",  name: "Delphi Harrison",   price: 3200.00,   basePrice: 3200.00,   total: 40000000,  owned: 45, private: false, vol: 1.8, history: [] },
+                { sym: "MRC",  name: "M & R Ceramics",    price: 2500.00,   basePrice: 2500.00,   total: 25000000,  owned: 50, private: false, vol: 1.9, history: [] },
+                { sym: "SPW",  name: "Sprawlwear",        price: 1800.00,   basePrice: 1800.00,   total: 35000000,  owned: 60, private: false, vol: 2.0, history: [] },
+                { sym: "OSR",  name: "Osiris Rejuv.",     price: 3600.00,   basePrice: 3600.00,   total: 45000000,  owned: 30, private: false, vol: 1.5, history: [] },
+                { sym: "WKG",  name: "Wishkind GmbH",     price: 2300.00,   basePrice: 2300.00,   total: 20000000,  owned: 55, private: false, vol: 2.1, history: [] },
+                { sym: "TDT",  name: "Toldeen Tech",      price: 2900.00,   basePrice: 2900.00,   total: 30000000,  owned: 40, private: false, vol: 1.7, history: [] },
+                { sym: "PCF",  name: "Pacific Foods",     price: 3100.00,   basePrice: 3100.00,   total: 50000000,  owned: 45, private: false, vol: 1.6, history: [] },
+                { sym: "EBM",  name: "Eibisu Biomech",    price: 2700.00,   basePrice: 2700.00,   total: 25000000,  owned: 50, private: false, vol: 1.8, history: [] },
+                { sym: "NSE",  name: "North Sea enjoy.",  price: 1200.00,   basePrice: 1200.00,   total: 15000000,  owned: 70, private: false, vol: 2.4, history: [] },
+                { sym: "CNA",  name: "Cinaestial",        price: 2400.00,   basePrice: 2400.00,   total: 35000000,  owned: 60, private: false, vol: 2.0, history: [] },
+                { sym: "NGI",  name: "NuGene Inc.",       price: 3500.00,   basePrice: 3500.00,   total: 40000000,  owned: 35, private: false, vol: 1.7, history: [] },
+                { sym: "SCV",  name: "Shipping Co.",      price: 1900.00,   basePrice: 1900.00,   total: 20000000,  owned: 55, private: false, vol: 2.2, history: [] },
+                { sym: "ALC",  name: "Alchemix",          price: 2600.00,   basePrice: 2600.00,   total: 30000000,  owned: 45, private: false, vol: 1.9, history: [] },
+                { sym: "WTS",  name: "Wok Tsingtao",      price: 1100.00,   basePrice: 1100.00,   total: 15000000,  owned: 75, private: false, vol: 2.5, history: [] },
+                { sym: "BBC",  name: "British Broadcast", price: 3800.00,   basePrice: 3800.00,   total: 80000000,  owned: 30, private: false, vol: 1.4, history: [] },
+                { sym: "GKG",  name: "Gökhan Gastro",     price: 1500.00,   basePrice: 1500.00,   total: 20000000,  owned: 65, private: false, vol: 2.3, history: [] },
+                { sym: "FJT",  name: "Forjas Taurus",     price: 3300.00,   basePrice: 3300.00,   total: 50000000,  owned: 40, private: false, vol: 1.6, history: [] },
+                { sym: "HDW",  name: "Howaldtswerke",     price: 4100.00,   basePrice: 4100.00,   total: 70000000,  owned: 35, private: false, vol: 1.5, history: [] },
+                { sym: "PCE",  name: "Plank Civil Eng.",  price: 2800.00,   basePrice: 2800.00,   total: 35000000,  owned: 50, private: false, vol: 1.8, history: [] },
+                { sym: "KEI",  name: "Keane Inc.",        price: 3000.00,   basePrice: 3000.00,   total: 45000000,  owned: 45, private: false, vol: 1.7, history: [] },
+                { sym: "WPR",  name: "Westphalian Radio", price: 1700.00,   basePrice: 1700.00,   total: 25000000,  owned: 60, private: false, vol: 2.1, history: [] },
+                { sym: "FPA",  name: "FraPort AG",        price: 3700.00,   basePrice: 3700.00,   total: 60000000,  owned: 40, private: false, vol: 1.5, history: [] },
+                { sym: "NDC",  name: "New Dawn Corp",     price: 2400.00,   basePrice: 2400.00,   total: 30000000,  owned: 55, private: false, vol: 2.0, history: [] },
+                { sym: "STV",  name: "Stark & Theissen",  price: 4000.00,   basePrice: 4000.00,   total: 20000000,  owned: 70, private: true,  vol: 1.6, history: [] },
+                { sym: "PCI",  name: "Pacific Cyber",     price: 3200.00,   basePrice: 3200.00,   total: 40000000,  owned: 45, private: false, vol: 1.8, history: [] }
+            ],
+            players: [],
+            settings: { speed: 5000, active: true, interestRate: 0.05 },
+            interval: null,
+            chartInstance: null,
+            
+            boot: function() {
+                const textEl = document.getElementById('boot-text');
+                const fillEl = document.getElementById('boot-fill');
+                const bootEl = document.getElementById('boot-sequence');
+                const mainEl = document.getElementById('main-interface');
+                
+                fillEl.style.transition = "width 0.8s linear";
+                setTimeout(() => { fillEl.style.width = "100%"; }, 100);
+                
+                setTimeout(() => {
+                    if(bootEl) bootEl.style.opacity = '0';
+                    setTimeout(() => { 
+                        if(bootEl) bootEl.style.display = 'none'; 
+                        if(mainEl) mainEl.classList.add('visible');
+                        this.init(); 
+                    }, 500);
+                }, 900);
+            },
+
+            init: function() {
+                this.stocks.forEach(s => {
+                    s.float = s.private ? 0 : s.total * (1 - (s.owned / 100));
+                    if(!s.history || s.history.length === 0) {
+                        s.history = [];
+                        for(let i=0; i<30; i++) s.history.push(s.price);
+                    }
+                });
+                this.start();
+                this.renderAll();
+            },
+
+            start: function() {
+                if(this.interval) clearInterval(this.interval);
+                this.interval = setInterval(() => {
+                    if(this.settings.active) {
+                        this.stocks.forEach(s => this.math(s));
+                        this.renderAll();
+                    }
+                }, this.settings.speed);
+            },
+
+            math: function(s) {
+                if(s.private) return; 
+                const liquidity = s.float / s.total; 
+                const scarcity = 1 + (1 - liquidity); 
+                const dir = (Math.random() - 0.49) * 2; 
+                const drift = 0.0005; 
+                
+                let reversion = 0;
+                if (s.price < (s.basePrice * 0.7)) {
+                    reversion = (s.basePrice - s.price) * 0.002;
+                }
+
+                const change = (s.price * 0.01) * dir * s.vol * scarcity;
+                s.price += (change + (s.price * drift) + reversion);
+                
+                if(s.price < 0.01) s.price = 0.01;
+                
+                s.history.push(s.price);
+                if(s.history.length > 50) s.history.shift();
+            },
+
+            trade: function(type) {
+                const pIdx = document.getElementById('playerSelect').value;
+                const sym = document.getElementById('stockSelect').value;
+                const amt = parseInt(document.getElementById('tradeAmt').value);
+                
+                if(pIdx === "Select Identity..." || sym === "Select Asset..." || !amt || amt <= 0) return alert("Invalid Order");
+                
+                const p = this.players[pIdx];
+                const s = this.stocks.find(i => i.sym === sym);
+                const cost = s.price * amt;
+
+                if(s.private) return alert("ERROR: Asset is PRIVATE.");
+                if(!p.portfolio[sym]) p.portfolio[sym] = { shares: 0, avgCost: 0 };
+
+                if(type === 'buy') {
+                    if(amt > s.float) return alert("Insufficient Liquidity");
+                    if(p.cash < cost) return alert("Insufficient Funds");
+                    
+                    const curS = p.portfolio[sym].shares;
+                    const curT = curS * p.portfolio[sym].avgCost;
+                    p.portfolio[sym].avgCost = (curT + cost) / (curS + amt);
+                    
+                    p.cash -= cost;
+                    p.portfolio[sym].shares += amt;
+                    s.float -= amt;
+                    this.log(p.name, `BOUGHT ${amt} ${sym}`);
+                } else if(type === 'sell') {
+                    if(p.portfolio[sym].shares < amt) return alert("Insufficient Shares");
+                    
+                    let revenue = cost;
+                    if (p.debt > 0) {
+                        if (revenue >= p.debt) {
+                            revenue -= p.debt;
+                            this.log(p.name, `PAID OFF DEBT: ¥${p.debt.toLocaleString()}`);
+                            p.debt = 0;
+                        } else {
+                            p.debt -= revenue;
+                            this.log(p.name, `REDUCED DEBT BY: ¥${revenue.toLocaleString()}`);
+                            revenue = 0;
+                        }
+                    }
+                    
+                    p.cash += revenue;
+                    p.portfolio[sym].shares -= amt;
+                    s.float += amt;
+                    this.log(p.name, `SOLD ${amt} ${sym}`);
+                } else if(type === 'margin_buy') {
+                    if(amt > s.float) return alert("Insufficient Liquidity");
+                    p.debt += cost; 
+                    const curS = p.portfolio[sym].shares;
+                    const curT = curS * p.portfolio[sym].avgCost;
+                    p.portfolio[sym].avgCost = (curT + cost) / (curS + amt);
+                    p.portfolio[sym].shares += amt; 
+                    s.float -= amt;
+                    this.log(p.name, `MARGIN BUY ${amt} ${sym}`);
+                } else if(type === 'short') {
+                    p.cash += cost; 
+                    p.portfolio[sym].shares -= amt;
+                    this.log(p.name, `SHORT SOLD ${amt} ${sym}`);
+                }
+                
+                const impact = (amt / s.total) * 0.5; 
+                if(type.includes('buy')) s.price *= (1 + impact);
+                else s.price *= (1 - impact);
+                
+                this.renderAll();
+            },
+
+            injectCash: function() {
+                const pIdx = document.getElementById('gmPlayerSelect').value;
+                const amt = parseFloat(document.getElementById('gmCashAmt').value);
+                if(pIdx === "Select..." || isNaN(amt)) return alert("Invalid Data");
+                this.players[pIdx].cash += amt;
+                this.log("GM", `INJECTED ¥${amt.toLocaleString()} TO ${this.players[pIdx].name}`);
+                this.renderAll();
+            },
+
+            loadEditCorp: function() {
+                const sym = document.getElementById('gmStockSelect').value;
+                if(sym === "Select...") return;
+                const s = this.stocks.find(i => i.sym === sym);
+                if(!s) return;
+                document.getElementById('editName').value = s.name;
+                document.getElementById('editPrice').value = s.price.toFixed(2);
+                document.getElementById('editTotal').value = s.total;
+                document.getElementById('editOwned').value = s.owned;
+                document.getElementById('editPrivate').checked = s.private;
+            },
+
+            saveEditCorp: function() {
+                const sym = document.getElementById('gmStockSelect').value;
+                if(sym === "Select...") return alert("Select a Corp");
+                const s = this.stocks.find(i => i.sym === sym);
+                if(!s) return;
+                
+                s.name = document.getElementById('editName').value;
+                s.price = parseFloat(document.getElementById('editPrice').value);
+                s.basePrice = s.price; 
+                s.total = parseFloat(document.getElementById('editTotal').value);
+                s.owned = parseFloat(document.getElementById('editOwned').value);
+                s.private = document.getElementById('editPrivate').checked;
+                s.float = s.private ? 0 : s.total * (1 - (s.owned/100));
+                
+                this.renderAll();
+                this.log("GM", `UPDATED CORP: ${sym}`);
+                alert(`${sym} Updated Successfully.`);
+            },
+
+            deleteCorp: function() {
+                const sym = document.getElementById('gmStockSelect').value;
+                if(sym === "Select...") return alert("Select a Corp");
+                if(confirm(`WARNING: Permanently delete ${sym} from the exchange?`)) {
+                    this.stocks = this.stocks.filter(i => i.sym !== sym);
+                    document.getElementById('gmStockSelect').options.length = 1; 
+                    this.updateUI();
+                    this.renderAll();
+                    this.log("GM", `DELETED CORP: ${sym}`);
+                }
+            },
+
+            addCorp: function() {
+                const sym = document.getElementById('ipoSym').value.toUpperCase();
+                const name = document.getElementById('ipoName').value;
+                const price = parseFloat(document.getElementById('ipoPrice').value);
+                const total = parseFloat(document.getElementById('ipoTotal').value);
+                const owned = parseFloat(document.getElementById('ipoOwned').value);
+                const isPrivate = document.getElementById('ipoPrivate').checked;
+
+                if(!sym || !name || !price) return alert("Missing Data");
+                if(this.stocks.find(s => s.sym === sym)) return alert("Symbol Exists");
+
+                const newStock = {
+                    sym, name, price, basePrice: price, total, owned, private: isPrivate, vol: 1.0, history: [],
+                    float: isPrivate ? 0 : total * (1 - (owned/100))
+                };
+                
+                for(let i=0; i<30; i++) newStock.history.push(price);
+                this.stocks.push(newStock);
+                
+                this.renderAll();
+                this.log("GM", `IPO LAUNCHED: ${name} (${sym})`);
+            },
+
+            timeSkip: function() {
+                this.players.forEach(p => {
+                    if(p.debt > 0) {
+                        const interest = p.debt * this.settings.interestRate;
+                        p.debt += interest;
+                        this.log("SYSTEM", `${p.name} Interest: ¥${interest.toFixed(0)}`);
+                    }
+                });
+                alert(`Time advanced 1 week. ${(this.settings.interestRate * 100).toFixed(1)}% interest applied.`);
+                this.renderAll();
+            },
+
+            triggerEvent: function(type) {
+                if(type === 'crash') { this.stocks.forEach(s => { if(!s.private) s.price *= (0.7 + Math.random() * 0.1); }); }
+                else if(type === 'boom') { this.stocks.forEach(s => { if(!s.private) s.price *= (1.2 + Math.random() * 0.15); }); }
+                else if(type === 'magic') { this.stocks.filter(s => s.sym === 'WUX' || s.sym === 'S-K').forEach(s => s.price *= 1.4); }
+                this.renderAll();
+            },
+
+            renderAll: function() {
+                this.renderTable(); 
+                this.renderTicker(); 
+                this.renderWallets(); 
+                this.renderAudit(); 
+                this.updateQuote(); 
+                this.updateUI();
+                const chartTab = document.getElementById('tab-charts');
+                if(chartTab && chartTab.style.display === 'block') this.renderChart();
+            },
+
+            renderTable: function() {
+                const tb = document.getElementById('stockTableBody'); 
+                if(!tb) return;
+                tb.innerHTML = '';
+                this.stocks.forEach(s => {
+                    const prev = s.history[s.history.length-2] || s.price;
+                    const diff = s.price - prev;
+                    const css = diff >= 0 ? 'up' : 'down';
+                    const status = s.private ? '<span class="private-lock">🔒 PRIVATE</span>' : 'OPEN';
+                    tb.innerHTML += `<tr><td style="color:var(--neon-blue); font-weight:bold;">${s.sym}</td><td>${s.name}</td><td>¥${s.price.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}</td><td class="${css}">${diff>=0?'+':''}${diff.toFixed(2)}</td><td>${s.owned}%</td><td>${s.private?'0':s.float.toLocaleString()}</td><td>${status}</td></tr>`;
+                });
+            },
+
+            renderWallets: function() {
+                const grid = document.getElementById('walletGrid'); 
+                if(!grid) return;
+                grid.innerHTML = '';
+                this.players.forEach(p => {
+                    let holdings = ''; let assetsVal = 0;
+                    for(const [sym, data] of Object.entries(p.portfolio)) {
+                        if(data.shares !== 0) {
+                            const s = this.stocks.find(i => i.sym === sym);
+                            if (s) {
+                                const val = data.shares * s.price;
+                                assetsVal += val;
+                                const roi = data.avgCost>0 ? ((s.price-data.avgCost)/data.avgCost)*100 : 0;
+                                holdings += `<div style="border-top:1px dashed #333; font-size:0.8em; margin-top:5px;"><div style="display:flex; justify-content:space-between;"><span style="color:var(--neon-blue)">${sym}</span><span>${data.shares.toLocaleString()} sh</span></div><div style="color:#888;">Avg: ¥${data.avgCost.toFixed(0)} <span style="color:${roi>=0?'var(--neon-green)':'var(--neon-pink)'}">${roi.toFixed(1)}%</span></div></div>`;
+                            }
+                        }
+                    }
+                    const nw = p.cash + assetsVal - p.debt;
+                    grid.innerHTML += `<div class="card"><div class="card-header"><span>${p.name}</span><span style="color:${nw>=0?'#fff':'var(--neon-red)'}">NW: ¥${nw.toLocaleString(undefined, {maximumFractionDigits:0})}</span></div><div class="stat-row"><span class="stat-label">CASH:</span><span>¥${p.cash.toLocaleString(undefined, {maximumFractionDigits:0})}</span></div><div class="stat-row"><span class="stat-label">DEBT:</span><span style="color:var(--neon-red)">¥${p.debt.toLocaleString(undefined, {maximumFractionDigits:0})}</span></div>${holdings}</div>`;
+                });
+            },
+
+            renderAudit: function() {
+                const tb = document.getElementById('auditBody'); 
+                if(!tb) return;
+                tb.innerHTML = '';
+                this.players.forEach(p => {
+                    let assets = 0;
+                    for(const [sym, d] of Object.entries(p.portfolio)) { 
+                        const s = this.stocks.find(i=>i.sym===sym); 
+                        if(s) assets += d.shares * s.price; 
+                    }
+                    const nw = p.cash + assets - p.debt;
+                    tb.innerHTML += `<tr><td>${p.name}</td><td>¥${p.cash.toLocaleString(undefined, {maximumFractionDigits:0})}</td><td style="color:var(--neon-red)">¥${p.debt.toLocaleString(undefined, {maximumFractionDigits:0})}</td><td>¥${nw.toLocaleString(undefined, {maximumFractionDigits:0})}</td></tr>`;
+                });
+            },
+
+            addPlayer: function() {
+                const name = document.getElementById('newPName').value;
+                const cash = parseFloat(document.getElementById('newPCash').value);
+                if(!name) return;
+                this.players.push({ id: Date.now(), name, cash, debt: 0, portfolio: {} });
+                document.getElementById('newPName').value = '';
+                this.updateUI(); 
+                this.renderAll();
+            },
+
+            updateUI: function() {
+                const sel = document.getElementById('playerSelect');
+                const sSel = document.getElementById('stockSelect');
+                const cSel = document.getElementById('chartSelect');
+                const gmPSel = document.getElementById('gmPlayerSelect');
+                const gmSSel = document.getElementById('gmStockSelect');
+                if(!sel || !sSel || !cSel) return;
+
+                if(sel.options.length-1 !== this.players.length) {
+                    sel.innerHTML = '<option>Select Identity...</option>';
+                    if(gmPSel) gmPSel.innerHTML = '<option>Select...</option>';
+                    this.players.forEach((p,i) => {
+                        sel.innerHTML += `<option value="${i}">${p.name}</option>`;
+                        if(gmPSel) gmPSel.innerHTML += `<option value="${i}">${p.name}</option>`;
+                    });
+                }
+                if(sSel.options.length-1 !== this.stocks.length) {
+                    sSel.innerHTML = '<option>Select Asset...</option>';
+                    cSel.innerHTML = '';
+                    if(gmSSel) gmSSel.innerHTML = '<option>Select...</option>';
+                    this.stocks.forEach(s => {
+                        sSel.innerHTML += `<option value="${s.sym}">${s.sym} - ${s.name}</option>`;
+                        cSel.innerHTML += `<option value="${s.sym}">${s.sym}</option>`;
+                        if(gmSSel) gmSSel.innerHTML += `<option value="${s.sym}">${s.sym} - ${s.name}</option>`;
+                    });
+                }
+            },
+
+            updateQuote: function() {
+                const pIdx = document.getElementById('playerSelect').value;
+                const sym = document.getElementById('stockSelect').value;
+                const box = document.getElementById('quoteBox');
+                if(!box) return;
+                
+                if(sym === "Select Asset...") { box.style.display = 'none'; return; }
+                const s = this.stocks.find(i=>i.sym===sym);
+                if(!s) return;
+
+                box.style.display = 'block';
+                document.getElementById('qPrice').innerText = `¥${s.price.toLocaleString(undefined, {maximumFractionDigits:2})}`;
+                document.getElementById('qFloat').innerText = s.private ? "LOCKED" : s.float.toLocaleString();
+                document.getElementById('qOwned').innerText = s.owned + "%";
+                
+                if(pIdx !== "Select Identity...") {
+                    const p = this.players[pIdx];
+                    const port = p.portfolio[sym];
+                    document.getElementById('qPos').innerText = port ? port.shares.toLocaleString() + " sh" : "0 sh";
+                }
+            },
+
+            renderTicker: function() {
+                const el = document.getElementById('scrollingTicker'); 
+                if(!el) return;
+                let html = '';
+                this.stocks.forEach(s => { 
+                    if(!s.private) { 
+                        const prev = s.history[s.history.length-2]||s.price; 
+                        const up = s.price>=prev; 
+                        html += `<div class="ticker-item"><span style="color:#fff">${s.sym}</span> <span style="color:${up?'var(--neon-green)':'var(--neon-pink)'}">${up?'▲':'▼'} ${s.price.toFixed(2)}</span></div>`; 
+                    }
+                });
+                el.innerHTML = html + html; 
+            },
+
+            renderChart: function() {
+                if(typeof Chart === 'undefined') return;
+                const sym = document.getElementById('chartSelect').value;
+                const s = this.stocks.find(i => i.sym === sym);
+                if(!s) return;
+                
+                const ctx = document.getElementById('mainChart').getContext('2d');
+                if(this.chartInstance) this.chartInstance.destroy();
+                
+                this.chartInstance = new Chart(ctx, { 
+                    type: 'line', 
+                    data: { 
+                        labels: Array.from({length: s.history.length}, (_, i) => i), 
+                        datasets: [{ 
+                            label: s.name, 
+                            data: s.history, 
+                            borderColor: '#00ff41', 
+                            borderWidth: 2, 
+                            backgroundColor: 'rgba(0, 255, 65, 0.1)', 
+                            fill: true, 
+                            tension: 0.3, 
+                            pointRadius: 0 
+                        }] 
+                    }, 
+                    options: { 
+                        responsive: true, 
+                        maintainAspectRatio: false, 
+                        animation: false, 
+                        scales: { 
+                            x:{display:false}, 
+                            y:{grid:{color:'#333'}, ticks:{color:'#00ff41'}} 
+                        }, 
+                        plugins:{legend:{labels:{color:'#fff'}}} 
+                    } 
+                });
+            },
+
+            log: function(who, msg) { 
+                const div = document.getElementById('transLog'); 
+                if(div) div.innerHTML = `<div class="log-entry"><span style="color:#666">[${new Date().toLocaleTimeString()}]</span> <strong>${who}:</strong> ${msg}</div>` + div.innerHTML; 
+            },
+            exportData: function() { 
+                const data = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({ stocks: this.stocks, players: this.players, settings: this.settings })); 
+                const a = document.createElement('a'); 
+                a.href = data; 
+                a.download = "shadowrun_market_save.json"; 
+                a.click(); 
+            },
+            importData: function() { 
+                const file = document.getElementById('importFile').files[0]; 
+                if(!file) return; 
+                const reader = new FileReader(); 
+                reader.onload = (e) => { 
+                    const d = JSON.parse(e.target.result); 
+                    this.stocks = d.stocks; 
+                    this.players = d.players; 
+                    if(d.settings) this.settings = d.settings;
+                    this.renderAll(); 
+                    alert("System Data Loaded Successfully!"); 
+                }; 
+                reader.readAsText(file); 
+            },
+            reset: function() { if(confirm("CRITICAL: Wipe all data?")) location.reload(); },
+            tab: function(id, btn) { 
+                document.querySelectorAll('.tab-content').forEach(e => e.style.display='none'); 
+                document.querySelectorAll('.tab-btn').forEach(e => e.classList.remove('active')); 
+                document.getElementById('tab-'+id).style.display='block'; 
+                btn.classList.add('active'); 
+                if(id==='charts') this.renderChart(); 
+            },
+            togglePause: function() { this.settings.active = !this.settings.active; },
+            setSpeed: function(v) { this.settings.speed = parseInt(v); this.start(); }
+        };
+
+        window.addEventListener('load', () => sim.boot());
+    </script>
+</body>
+</html>
